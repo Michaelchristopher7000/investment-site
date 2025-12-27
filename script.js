@@ -1,21 +1,20 @@
 // --- EMAILJS CONFIGURATION ---
 function sendSecurityEmail(userEmail, code) {
-    const serviceID = "service_o7nd4jl";    // Your EmailJS Service ID
-    const templateID = "template_vdpfy4t";  // Your EmailJS Template ID
-
-    const username = userEmail.split("@")[0]; // Extract username from email
+    const serviceID = "service_o7nd4jl";
+    const templateID = "template_vdpfy4t";
+    const username = userEmail.split("@")[0];
 
     const templateParams = {
         to_email: userEmail,
         username: username,
         code: code,
         subject: "Your Vercel Invest Security Code",
-        instructions: "Enter this code in your app to verify your account. This code expires in 10 minutes.",
+        instructions: "Enter this code to verify your action. This code expires in 10 minutes.",
         timestamp: new Date().toLocaleString()
     };
 
     return emailjs.send(serviceID, templateID, templateParams)
-        .then(() => console.log("2FA Email sent to " + userEmail + "!"))
+        .then(() => console.log("Security Email sent to " + userEmail + "!"))
         .catch(err => console.error("Email failed:", err));
 }
 
@@ -93,23 +92,28 @@ function handleAuth(action, event) {
     const btn = event.target;
     const originalText = btn.innerHTML;
 
+    // --- CASE 1: SIGNUP (Requires 2FA) ---
     if (action === 'signup') {
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
         if (!email || !pass) return showPopup("Please fill all fields", "error");
 
-        localStorage.setItem('userEmail', email.toLowerCase());
-        localStorage.setItem('userPass', pass);
+        // Save data temporarily until 2FA is verified
+        localStorage.setItem('tempEmail', email.toLowerCase());
+        localStorage.setItem('tempPass', pass);
 
         const code = generate2FACode();
         localStorage.setItem('user2FACode', code);
 
         runLoadingAnimation(bar, btn, originalText, () => {
             sendSecurityEmail(email, code);
-            showPopup("Account created! 2FA code sent to your Gmail.", "success", () => navigate('signin'));
+            // Navigate to 2FA screen immediately during registration
+            navigate('2fa');
+            showPopup("Security code sent to your Gmail for account verification.", "success");
         });
     }
 
+    // --- CASE 2: SIGNIN (No 2FA required) ---
     else if (action === 'signin') {
         const emailInput = document.getElementById('log-email').value.toLowerCase();
         const passInput = document.getElementById('log-pass').value;
@@ -117,30 +121,31 @@ function handleAuth(action, event) {
         const savedPass = localStorage.getItem('userPass');
 
         if (emailInput === savedEmail && passInput === savedPass) {
-            const code = generate2FACode();
-            localStorage.setItem('user2FACode', code);
-
             runLoadingAnimation(bar, btn, originalText, () => {
-                sendSecurityEmail(emailInput, code).then(() => {
-                    navigate('2fa');
-                    showPopup("Security code sent to your email.", "success");
-                });
+                // Verified: Go straight to Dashboard
+                window.location.href = "dashboard.html";
             });
         } else {
             showPopup("Incorrect email or password.", "error");
         }
     }
 
+    // --- CASE 3: RESET PASSWORD (Requires 2FA for safety) ---
     else if (action === 'reset') {
         const emailInput = document.getElementById('forgot-email-input').value.toLowerCase();
         const newPass = document.getElementById('new-password-input').value;
         const savedEmail = localStorage.getItem('userEmail');
 
         if (emailInput === savedEmail) {
+            // Save new pass to temp slot
+            localStorage.setItem('tempPass', newPass);
+            const code = generate2FACode();
+            localStorage.setItem('user2FACode', code);
+
             runLoadingAnimation(bar, btn, originalText, () => {
-                localStorage.setItem('userPass', newPass);
-                sendSecurityEmail(emailInput, "Password Updated Successfully").then(() => {
-                    showPopup("Password updated! Check Gmail for confirmation.", "success", () => navigate('signin'));
+                sendSecurityEmail(emailInput, code).then(() => {
+                    navigate('2fa');
+                    showPopup("Please verify your identity to change your password.", "success");
                 });
             });
         } else {
@@ -148,37 +153,32 @@ function handleAuth(action, event) {
         }
     }
 
-    /* -----------------------------------------------------------
-       STAGES: 2FA VERIFICATION & DASHBOARD REDIRECT
-       ----------------------------------------------------------- */
+    // --- CASE 4: VERIFY 2FA (Used for Signup and Reset) ---
     else if (action === 'verify2fa') {
         const otpInputs = document.querySelectorAll('.otp-input');
         let enteredCode = "";
         otpInputs.forEach(input => enteredCode += input.value);
 
         runLoadingAnimation(bar, btn, originalText, () => {
-            // Check if the entered code matches the one stored in LocalStorage
             if (enteredCode === localStorage.getItem('user2FACode')) {
 
-                // Success Popup: When "Continue" is clicked, it executes the callback function
+                // On success, finalize the registration or password change
+                const finalEmail = localStorage.getItem('tempEmail') || localStorage.getItem('userEmail');
+                const finalPass = localStorage.getItem('tempPass');
+
+                localStorage.setItem('userEmail', finalEmail);
+                localStorage.setItem('userPass', finalPass);
+
                 showPopup("Identity Verified. Welcome!", "success", () => {
-
-                    /* >>> START REDIRECT LOGIC <<< */
-                    // This links to your main Dashboard file
-                    window.location.href = "./Dashboard.html";
-                    /* >>> END REDIRECT LOGIC <<< */
-
+                    window.location.href = "dashboard.html";
                 });
-
             } else {
-                // Handle incorrect code
                 showPopup("Invalid Code. Please check your Gmail.", "error");
                 otpInputs.forEach(input => input.value = "");
                 otpInputs[0].focus();
             }
         });
     }
-    /* ----------------------------------------------------------- */
 }
 
 // --- OTP AUTO-FOCUS ---
