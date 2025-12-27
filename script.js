@@ -170,7 +170,7 @@ function handleAuth(action, event) {
                 localStorage.setItem('userPass', finalPass);
 
                 showPopup("Identity Verified. Welcome!", "success", () => {
-                    window.location.href = "dashboard.html";
+                    window.location.href = "./dashboard.html";
                 });
             } else {
                 showPopup("Invalid Code. Please check your Gmail.", "error");
