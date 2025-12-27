@@ -123,7 +123,7 @@ function handleAuth(action, event) {
         if (emailInput === savedEmail && passInput === savedPass) {
             runLoadingAnimation(bar, btn, originalText, () => {
                 // Verified: Go straight to Dashboard
-                window.location.href = "dashboard.html";
+                window.location.href = "/dashboard.html";
             });
         } else {
             showPopup("Incorrect email or password.", "error");
